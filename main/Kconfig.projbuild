@@ -1,0 +1,17 @@
+menu "Example Configuration"
+
+config EXAMPLE_WIFI_SSID
+    string "Wi-Fi SSID"
+    default "your-ssid"
+
+config EXAMPLE_WIFI_PASSWORD
+    string "Wi-Fi password"
+    default "your-password"
+
+config EXAMPLE_SIMPLEOTA_TOKEN
+    string "SimpleOTA device token"
+    default "your-device-token"
+    help
+        Device token from the SimpleOTA dashboard.
+
+endmenu
