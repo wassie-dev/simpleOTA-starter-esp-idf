@@ -8,8 +8,7 @@
  * check-in after boot. If the new image crashes or never confirms, the
  * bootloader rolls back to this image.
  *
- * Wi-Fi credentials and the device token come from Example Configuration
- * (sdkconfig.secrets, or idf.py menuconfig).
+ * Wi-Fi credentials and the device token come from sdkconfig.secrets.
  */
 
 #include <inttypes.h>

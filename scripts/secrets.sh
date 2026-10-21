@@ -49,6 +49,10 @@ validate_secrets_file() {
       exit 1
     fi
     value="${rest:1:${#rest}-2}"
+    if [[ -z "${value}" || "${value}" =~ ^[[:space:]]+$ ]]; then
+      echo "sdkconfig.secrets sets a blank ${key}." >&2
+      exit 1
+    fi
     if value_is_placeholder "${value}"; then
       echo "sdkconfig.secrets uses a placeholder value." >&2
       exit 1
