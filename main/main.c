@@ -30,17 +30,36 @@ static bool is_connected(void *ctx) {
 }
 
 static void on_ota_event(const simpleota_event_t *evt, void *ctx) {
+    /* 0 is no 10% step logged yet. 1..10 are 10%..100% of this download. */
+    static unsigned s_progress_step;
+
     (void)ctx;
     switch (evt->id) {
     case SIMPLEOTA_EVENT_UPDATE_AVAILABLE:
         ESP_LOGI(TAG, "update available: build %" PRIu32, evt->build_number);
         break;
-    case SIMPLEOTA_EVENT_DOWNLOAD_PROGRESS:
-        if (evt->bytes_total) {
-            ESP_LOGI(TAG, "downloading: %u/%u bytes",
-                     (unsigned)evt->bytes_done, (unsigned)evt->bytes_total);
+    case SIMPLEOTA_EVENT_DOWNLOAD_PROGRESS: {
+        size_t total = evt->bytes_total;
+        size_t done = evt->bytes_done;
+        unsigned step;
+
+        if (total == 0) {
+            break;
+        }
+        step = (unsigned)(((uint64_t)done * 10) / total);
+        if (done >= total || step > 10) {
+            step = 10;
+        }
+        if (step < s_progress_step) {
+            s_progress_step = 0;
+        }
+        if (step > s_progress_step) {
+            s_progress_step = step;
+            ESP_LOGI(TAG, "downloading: %u%% (%u/%u bytes)",
+                     step * 10, (unsigned)done, (unsigned)total);
         }
         break;
+    }
     case SIMPLEOTA_EVENT_UPDATE_FAILED:
         ESP_LOGW(TAG, "update failed: %s", evt->reason ? evt->reason : "?");
         break;

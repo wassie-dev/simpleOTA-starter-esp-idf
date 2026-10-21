@@ -7,7 +7,7 @@ An ESP-IDF project that connects to Wi-Fi, checks in to [SimpleOTA](https://simp
 1. Click **Use this template** and create your own repository.
 2. Copy `sdkconfig.secrets.example` to `sdkconfig.secrets` and fill in your device token, Wi-Fi SSID, and Wi-Fi password.
 3. Set the target with `idf.py set-target`. The default is `esp32`.
-4. Flash once with `idf.py flash`.
+4. Flash once with `idf.py flash`. On a board that has run SimpleOTA or other firmware before, run `idf.py erase-flash` first, so an old build number left in NVS doesn't make the server treat the board as up to date.
 5. Set `PROJECT_VER` in `CMakeLists.txt`, then tag `v` plus that version, for example `v1.0.0`.
 
 ## CI
