@@ -5,7 +5,7 @@ An ESP-IDF project that connects to Wi-Fi, checks in to [SimpleOTA](https://simp
 ## Start
 
 1. Click **Use this template** and create your own repository.
-2. Copy `sdkconfig.secrets.example` to `sdkconfig.secrets`. Fill in your device token, Wi-Fi SSID, and Wi-Fi password, or set the same options with `idf.py menuconfig` under Example Configuration.
+2. Copy `sdkconfig.secrets.example` to `sdkconfig.secrets` and fill in your device token, Wi-Fi SSID, and Wi-Fi password.
 3. Set the target with `idf.py set-target`. The default is `esp32`.
 4. Flash once with `idf.py flash`.
 5. Set `PROJECT_VER` in `CMakeLists.txt`, then tag `v` plus that version, for example `v1.0.0`.

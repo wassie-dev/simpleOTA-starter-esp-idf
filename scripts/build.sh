@@ -3,7 +3,6 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 BUILD="${ROOT}/build"
-EXAMPLE="${ROOT}/sdkconfig.secrets.example"
 SECRETS="${ROOT}/sdkconfig.secrets"
 
 supported_chip() {
@@ -19,10 +18,12 @@ if ! supported_chip "${CHIP}"; then
   exit 1
 fi
 
+if [[ ! -f "${SECRETS}" ]]; then
+  echo "sdkconfig.secrets is missing. Copy sdkconfig.secrets.example to sdkconfig.secrets and fill it in." >&2
+  exit 1
+fi
 if [[ "${SIMPLEOTA_RELEASE:-}" == "true" ]]; then
   "${ROOT}/scripts/secrets.sh" check
-elif [[ ! -f "${SECRETS}" ]]; then
-  cp "${EXAMPLE}" "${SECRETS}"
 fi
 
 cd "${ROOT}"
@@ -31,6 +32,3 @@ idf.py build
 
 mkdir -p "${BUILD}"
 printf '%s\n' "${CHIP}" > "${BUILD}/chip"
-if [[ -n "${GITHUB_OUTPUT:-}" ]]; then
-  echo "chip=${CHIP}" >> "${GITHUB_OUTPUT}"
-fi

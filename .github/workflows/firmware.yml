@@ -46,6 +46,10 @@ jobs:
           SIMPLEOTA_DEVICE_TOKEN: ${{ secrets.SIMPLEOTA_DEVICE_TOKEN }}
         run: ./scripts/secrets.sh write
 
+      - name: Copy example secrets
+        if: "!startsWith(github.ref, 'refs/tags/v')"
+        run: cp sdkconfig.secrets.example sdkconfig.secrets
+
       - name: Compile
         id: compile
         env:
