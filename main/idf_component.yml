@@ -1,0 +1,3 @@
+dependencies:
+  xanderwasserman/simpleota:
+    version: "0.2.1"
