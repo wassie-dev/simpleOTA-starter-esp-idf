@@ -2,7 +2,7 @@
 
 This is an ESP-IDF project that joins your Wi-Fi, checks in to [SimpleOTA](https://simpleota.com), and installs later firmware over the air. You flash the board once from USB. After that, a version tag on GitHub builds the next firmware and can upload it, and the board installs that build by itself.
 
-The firmware uses the [xanderwasserman/simpleota](https://components.espressif.com/components/xanderwasserman/simpleota) component at version 0.2.1. This starter does not sign firmware. The release workflow uploads the application binary unsigned.
+The firmware uses the [xanderwasserman/simpleota](https://components.espressif.com/components/xanderwasserman/simpleota) component at version 0.2.1. This starter does not sign firmware. The release workflow uploads the application binary unsigned, and the release action records that as security `basic`, which is what the Actions summary shows.
 
 ## Before you start
 
@@ -44,7 +44,7 @@ Open the project. Under the project name is **Project ID**, a UUID, with a copy 
 
 This firmware sends the board's Wi-Fi station MAC as its device id. The client writes that MAC in lowercase hexadecimal with colons, in the form `aa:bb:cc:dd:ee:ff`. A device token works for exactly one device id, and it cannot register a device that does not already exist. Create the device row before the first flash, and enter that MAC as the device id.
 
-The ESP-IDF 5.5 line installs esptool 4. Print the address programmed into the chip:
+The ESP-IDF 5.5 line installs esptool 4. The ESP-IDF v5.5.5 environment must be loaded first (`. $IDF_PATH/export.sh`, or the ESP-IDF terminal on Windows) before you run `esptool.py` or `idf.py`, as described in [Espressif's get-started guide for v5.5.5](https://docs.espressif.com/projects/esp-idf/en/v5.5.5/esp32/get-started/index.html). Print the address programmed into the chip:
 
 ```bash
 esptool.py -p PORT read_mac
@@ -79,13 +79,7 @@ This starter accepts these chip names:
 
 `esp32`, `esp32s2`, `esp32s3`, `esp32c3`, `esp32c6`, `esp32h2`
 
-The default is `esp32`. Set the chip before the first build, using the name that matches your board:
-
-```bash
-idf.py set-target esp32
-```
-
-Change `esp32` to your board's chip. `idf.py set-target` writes `sdkconfig`, and that file is gitignored, so the choice stays on your machine.
+The default is `esp32`. Pick the name that matches your board, and pass it to the `idf.py set-target` command in the flash section after `sdkconfig.secrets` is filled in.
 
 Use the same chip name for the `SIMPLEOTA_CHIP` repository variable in the GitHub section below. The board reports the chip family it was compiled for. A tag build compiles `SIMPLEOTA_CHIP`, or `esp32` when that variable is empty, and the upload is labeled with that chip. The local target and `SIMPLEOTA_CHIP` have to be the chip on the board you ship. If they differ, the rollout is for a different chip than the one you flashed.
 
@@ -111,7 +105,7 @@ CONFIG_EXAMPLE_SIMPLEOTA_TOKEN="your-device-token"
 | `CONFIG_EXAMPLE_WIFI_PASSWORD` | The Wi-Fi password. In menuconfig this option is **Wi-Fi password**. |
 | `CONFIG_EXAMPLE_SIMPLEOTA_TOKEN` | The device token from the yellow alert box. In menuconfig this option is **SimpleOTA device token**. |
 
-Create this file before `idf.py set-target`. ESP-IDF applies `sdkconfig.defaults` and `sdkconfig.secrets` when it creates `sdkconfig`, and it does not re-read them after that. If you change `sdkconfig.secrets` later, delete `sdkconfig` and run `idf.py set-target` again with the same chip.
+Fill in this file before the `idf.py set-target` command in the flash section. ESP-IDF applies `sdkconfig.defaults` and `sdkconfig.secrets` when it creates `sdkconfig`, and it does not re-read them after that. If you change `sdkconfig.secrets` later, delete `sdkconfig` and run `idf.py set-target` again with the same chip.
 
 `scripts/secrets.sh` is what a release build uses to accept or reject this file. Blank lines are allowed. A comment line is allowed when the first character that is not whitespace is `#`. Every other line must be one of the three options above, with the value wrapped in double quotes. The script rejects anything else:
 
@@ -122,17 +116,21 @@ Create this file before `idf.py set-target`. ESP-IDF applies `sdkconfig.defaults
 - A value that is still `your-ssid`, `your-password`, or `your-device-token` is rejected with `sdkconfig.secrets uses a placeholder value.`
 - A file that omits any of the three options is rejected with `sdkconfig.secrets does not set the Wi-Fi and device token options.`
 
+If a release check runs and the file is not there, the script stops with `Release build is missing sdkconfig.secrets.` Running the script without `write` or `check` prints `Usage: secrets.sh write|check`. The workflow calls `write` on a tag. `scripts/build.sh` calls `check` on a release build.
+
 A normal local `idf.py build` does not run that script. A tag build does. Fill in real values now so the first flash and the later release use the same credentials.
 
 ## Flash over USB
 
 Do this once for the board. Replace `esp32` with the chip you chose, and replace `PORT` with the board's serial port.
 
-1. Set the target, if you have not already:
+1. Set the target. `sdkconfig.secrets` has to exist before this command:
 
 ```bash
 idf.py set-target esp32
 ```
+
+`idf.py set-target` writes `sdkconfig`, and that file is gitignored, so the choice stays on your machine.
 
 2. Build:
 
@@ -187,19 +185,19 @@ The workflow file is `.github/workflows/firmware.yml`. It reads four repository 
 
 On a pull request, and on a push to `main`, the workflow copies `sdkconfig.secrets.example` and builds that. It does not need the Wi-Fi secrets, the device token, or the API token. It still uses `SIMPLEOTA_CHIP` when that variable is set.
 
-On a tag whose name starts with `v`, the workflow writes `sdkconfig.secrets` from `SIMPLEOTA_WIFI_SSID`, `SIMPLEOTA_WIFI_PASSWORD`, and `SIMPLEOTA_DEVICE_TOKEN`, then builds. If any of those three is missing, the build fails with `Missing secret <name>.` and nothing is uploaded. The same failure happens when a secret contains a newline (`Secret <name> contains a newline.`) or is still a placeholder from the example file (`Secret <name> is still a placeholder.`). The placeholders are the strings `your-ssid`, `your-password`, and `your-device-token`, and any of the three secrets is rejected when its value is any of those strings.
+On a tag whose name starts with `v`, the workflow writes `sdkconfig.secrets` from `SIMPLEOTA_WIFI_SSID`, `SIMPLEOTA_WIFI_PASSWORD`, and `SIMPLEOTA_DEVICE_TOKEN`, then builds. Tag builds take their Wi-Fi settings from the GitHub secrets `SIMPLEOTA_WIFI_SSID` and `SIMPLEOTA_WIFI_PASSWORD`. These must match the network the board uses, or the OTA image will not reconnect. If any of those three is missing, the build fails with `Missing secret <name>.` and nothing is uploaded. The same failure happens when a secret contains a newline (`Secret <name> contains a newline.`) or is still a placeholder from the example file (`Secret <name> is still a placeholder.`). The placeholders are the strings `your-ssid`, `your-password`, and `your-device-token`, and any of the three secrets is rejected when its value is any of those strings.
 
 If `SIMPLEOTA_CHIP` is empty or unset, the build uses `esp32`. If it is any other name than the six chips listed above, the build fails with `Unsupported SIMPLEOTA_CHIP '<value>'. Supported chips: esp32, esp32s2, esp32s3, esp32c3, esp32c6, esp32h2.`
 
-If `SIMPLEOTA_API_TOKEN` is empty, the tag still builds, the job stays green, and the job summary says: `The SIMPLEOTA_API_TOKEN secret is not set. This tag built the firmware and did not upload it or start a rollout.`
+If `SIMPLEOTA_API_TOKEN` is empty, the tag still builds, the job stays green, and the job summary heading is `SimpleOTA upload skipped`. The paragraph under it says: `The SIMPLEOTA_API_TOKEN secret is not set. This tag built the firmware and did not upload it or start a rollout.`
 
-If the API token is set and `SIMPLEOTA_PROJECT_ID` is empty, the job also stays green, and the summary says: `SIMPLEOTA_API_TOKEN is set, but the SIMPLEOTA_PROJECT_ID repository variable is empty. The release action requires both, so nothing was uploaded.` That second check runs only when the API token is present. If both are missing, the summary mentions only the API token.
+If the API token is set and `SIMPLEOTA_PROJECT_ID` is empty, the job also stays green, and the summary uses that same heading. The paragraph says: `SIMPLEOTA_API_TOKEN is set, but the SIMPLEOTA_PROJECT_ID repository variable is empty. The release action requires both, so nothing was uploaded.` That second check runs only when the API token is present. If both are missing, the summary mentions only the API token.
 
-When both are set, the workflow uploads `build/simpleota_starter.bin` and starts a rollout. It does not pass a signing key, so the uploaded build is unsigned.
+When both are set, the workflow uploads `build/simpleota_starter.bin` and starts a rollout. It does not pass a signing key, so the uploaded build is unsigned. The release action records this as security `basic`, which is what the Actions summary shows. A successful tag run uses the job summary heading `SimpleOTA release`. The table under it lists Build, Version, Security (`basic`), and Channel (`stable` at 100%).
 
 ## Cut a release
 
-The version the device reports is `PROJECT_VER` in `CMakeLists.txt`. The workflow reads that line only when it looks exactly like this, including the quotes and the spaces:
+The version the device reports is `PROJECT_VER` in `CMakeLists.txt`. The workflow reads whatever version string is inside `set(PROJECT_VER "...")`, and it recognizes the line only when the quotes and the spaces match that form. The file starts as:
 
 ```
 set(PROJECT_VER "1.0.0")
@@ -221,15 +219,15 @@ git push origin HEAD
 git push origin v1.0.1
 ```
 
-Pushing the `v1.0.1` tag is what starts the release. The workflow compares the tag, with that one leading `v` removed, to `PROJECT_VER`. Those two texts have to be identical. A tag pushed while the file still says `1.0.0` fails the Build job with `Tag v1.0.1 does not match PROJECT_VER 1.0.0.` and nothing is uploaded. If the `PROJECT_VER` line is missing or no longer matches the shape above, the job fails with `PROJECT_VER was not found in CMakeLists.txt.`
+Pushing the `v1.0.1` tag is what starts the release. The workflow compares the tag, with that one leading `v` removed, to `PROJECT_VER`. Those two texts have to be identical, so the tag must be `v` followed by the version string you set. A tag pushed while the file still says `1.0.0` fails the Build job with `Tag v1.0.1 does not match PROJECT_VER 1.0.0.` and nothing is uploaded. If the `PROJECT_VER` line is missing, or it is no longer `set(PROJECT_VER "...")` with your version string in the quotes, the job fails with `PROJECT_VER was not found in CMakeLists.txt.`
 
 Watch the run on GitHub under the **Actions** tab. The workflow is named **Firmware**, and the job is named **Build**. A green run on a pull request, or on a push to `main`, only means that chip compiled. The upload runs on the tag. Open the tag's job summary to see whether the upload ran or was skipped.
 
 ## The over-the-air update
 
-A tag run that had both the API token and the project id uploads the binary and starts the rollout. The release action sends it to the channel named `stable`, at 100 percent. Devices belong to `stable` by default.
+A tag run that had both the API token and the project id uploads the binary and starts the rollout. That image takes its Wi-Fi settings from `SIMPLEOTA_WIFI_SSID` and `SIMPLEOTA_WIFI_PASSWORD`, and those secrets have to match the network the board uses, or the image will not reconnect. The release action sends it to the channel named `stable`, at 100 percent. Devices belong to `stable` by default.
 
-To see what was uploaded, open the project and switch on **Advanced** mode. That toggle is at the top right of the project. Advanced mode shows firmware artifacts and deployments. The uploaded build is listed on the **Firmware artifacts** page, with its build number, version label, framework, and chip family. The rollout is listed on the **Deployments** page. The project page also keeps a summary card for deployments, and an active rollout stays on that card. Open the deployment to see its check-in counts, including how many confirmed and how many failed or rolled back. Those cards refresh on their own.
+To see what was uploaded, open the project and switch on **Advanced** mode. That toggle is at the top right of the project. Advanced mode shows firmware artifacts and deployments. The uploaded build is listed on the **Firmware artifacts** page, with its build number, version label, framework, and chip family. The rollout is listed on the **Deployments** page. The project page also keeps a summary card for deployments, and an active rollout stays on that card. Open the deployment detail page to see its check-in counts, including how many confirmed and how many failed or rolled back. Those cards refresh on their own.
 
 The device checks in when it starts, which includes a reset, and then about once an hour. The first check runs after Wi-Fi has an IP address. If the rollout is already active, resetting the board is the way to make it look immediately, instead of waiting for the hour.
 
@@ -266,39 +264,27 @@ These are the failures the scripts and the workflow print.
 
 `sdkconfig.secrets is missing. Copy sdkconfig.secrets.example to sdkconfig.secrets and fill it in.` `scripts/build.sh` stops when the file is not there. Copy the example, as in the local secrets section. The project also lists that file in `SDKCONFIG_DEFAULTS`, so `idf.py` cannot configure the project until the file exists.
 
-`Release build is missing sdkconfig.secrets.` A release check ran and the file was not there. On a tag, the workflow writes the file before this check. Locally, create the file first.
+When `scripts/secrets.sh` rejects the file, the message is one of the lines under Add local secrets. That section is the description of those errors.
 
-`Missing secret SIMPLEOTA_WIFI_SSID.` The same line is used for `SIMPLEOTA_WIFI_PASSWORD` and `SIMPLEOTA_DEVICE_TOKEN`. The tag build stops, and nothing is uploaded. Add the missing secret on the **Secrets** tab. An empty secret produces this line too.
+The three secret errors below quote `SIMPLEOTA_WIFI_SSID` and use the same wording for `SIMPLEOTA_WIFI_PASSWORD` and `SIMPLEOTA_DEVICE_TOKEN`, and the check-in line that quotes HTTP 401 uses the same wording for HTTP 403.
 
-`Secret SIMPLEOTA_WIFI_SSID contains a newline.` One of the three release secrets contains a line break. Enter it as a single line. The same line is used for the password and the device token.
+`Missing secret SIMPLEOTA_WIFI_SSID.` The tag build stops, and nothing is uploaded. Add the missing secret on the **Secrets** tab. An empty secret produces this line too.
 
-`Secret SIMPLEOTA_WIFI_SSID is still a placeholder.` The secret's value is `your-ssid`, `your-password`, or `your-device-token`. Replace it with the real network name, password, or device token. The same line is used for all three secrets.
+`Secret SIMPLEOTA_WIFI_SSID contains a newline.` One of the three release secrets contains a line break. Enter it as a single line.
 
-`sdkconfig.secrets contains a line other than the Wi-Fi SSID, Wi-Fi password, and device token options.` A release check found a line that is not a `CONFIG_...=` setting and is not a blank line or a comment.
-
-`sdkconfig.secrets must not set CONFIG_....` The file sets an option other than the Wi-Fi SSID, the Wi-Fi password, and the device token.
-
-`sdkconfig.secrets has a malformed CONFIG_... line.` The value on that line is not wrapped in double quotes.
-
-`sdkconfig.secrets sets a blank CONFIG_....` The quoted value is empty, or it is only spaces.
-
-`sdkconfig.secrets uses a placeholder value.` A quoted value is still `your-ssid`, `your-password`, or `your-device-token`.
-
-`sdkconfig.secrets does not set the Wi-Fi and device token options.` At least one of the three options is absent.
-
-`Usage: secrets.sh write|check` The script was run without `write` or `check`. The workflow calls `write`. `scripts/build.sh` calls `check` on a release build.
+`Secret SIMPLEOTA_WIFI_SSID is still a placeholder.` The secret's value is `your-ssid`, `your-password`, or `your-device-token`. Replace it with the real network name, password, or device token.
 
 `Unsupported SIMPLEOTA_CHIP 'esp32c2'. Supported chips: esp32, esp32s2, esp32s3, esp32c3, esp32c6, esp32h2.` The chip variable is not one of those six names. Fix `SIMPLEOTA_CHIP` on the **Variables** tab, or remove it to build `esp32`. This check runs for tags, pull requests, and pushes to `main`.
 
-`PROJECT_VER was not found in CMakeLists.txt.` The version line is missing, or it no longer matches `set(PROJECT_VER "1.0.0")` exactly. Put the version back in that shape.
+`PROJECT_VER was not found in CMakeLists.txt.` The version line is missing, or it is no longer `set(PROJECT_VER "...")` with the version string you set inside the quotes. Put the line back in that shape. The version string is whatever you set, and the tag must be `v` followed by that string.
 
-`Tag v1.2.0 does not match PROJECT_VER 1.0.0.` The tag, without its single leading `v`, is not the same text as `PROJECT_VER`. Delete the bad tag, or move the version and tag to the same text, then push the matching tag.
+`Tag v1.2.0 does not match PROJECT_VER 1.0.0.` The tag must be `v` followed by the version string you set. In this example the tag and that string differ, so the job stops and nothing is uploaded. Delete the bad tag, or make the version string and the tag the same text, then push the matching tag.
 
-The job summary heading `SimpleOTA upload skipped` means the tag compiled and was not uploaded. Read the paragraph under it. It names either a missing `SIMPLEOTA_API_TOKEN` secret or an empty `SIMPLEOTA_PROJECT_ID` variable. The job is green on purpose in both cases.
+The job summary heading `SimpleOTA upload skipped` means the tag compiled and was not uploaded. Read the paragraph under it. It names either a missing `SIMPLEOTA_API_TOKEN` secret or an empty `SIMPLEOTA_PROJECT_ID` variable. The job is green on purpose in both cases. A successful tag run instead shows the heading `SimpleOTA release`, and that table lists Build, Version, Security (`basic`), and Channel (`stable` at 100%).
 
-`wifi: disconnected; retrying` The board cannot join the network in `sdkconfig.secrets`. The version line does not appear until `wifi: got IP`, and the monitor waits until that happens. Check the SSID and password, then flash again.
+`wifi: disconnected; retrying` The board cannot join the network compiled into this firmware. A USB flash uses `sdkconfig.secrets`. A tag build uses `SIMPLEOTA_WIFI_SSID` and `SIMPLEOTA_WIFI_PASSWORD`. The version line does not appear until `wifi: got IP`, and the monitor waits until that happens. Check the SSID and password, then flash again.
 
-`simpleota: server rejected the token (HTTP 401). Check your project token.` The check-in was refused. The same line is used with HTTP 403. The device token does not match this device, or it was copied wrong. The `device=` value in the init line is the id the token has to be issued for.
+`simpleota: server rejected the token (HTTP 401). Check your project token.` The check-in was refused. The wording "Check your project token" is generic. The firmware always uses the device token (`soto_dev_`), never a `soto_proj_` API token. The device token does not match this device, or it was copied wrong. The `device=` value in the init line is the id the token has to be issued for.
 
 `example: update failed: checksum_mismatch` The download did not match the checksum, so the board stayed on its current firmware. The component logs `simpleota: checksum mismatch:` and `simpleota: update failed: checksum_mismatch` on the same failure. Other failures use the same `example: update failed:` line with a different reason.
 
