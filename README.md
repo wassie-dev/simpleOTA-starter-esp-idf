@@ -1,6 +1,14 @@
 # SimpleOTA Starter ESP-IDF
 
-This is an ESP-IDF project that joins your Wi-Fi, checks in to [SimpleOTA](https://simpleota.com), and installs later firmware over the air. You flash the board once over USB, and from then on a version tag on GitHub builds the next firmware and can upload it, which the board then installs by itself.
+## What this repo is
+
+This repository is a GitHub template for starting your own ESP-IDF project with [SimpleOTA](https://simpleota.com), a hosted service that delivers firmware updates to ESP32 boards over Wi-Fi. Rather than working in this repository directly, you click **Use this template** to make your own copy, add your SimpleOTA and Wi-Fi settings, and flash the board once over USB. From then on, pushing a version tag ships new firmware.
+
+Your copy comes with three pieces that already work together:
+
+- `main/` is an ESP-IDF application that joins your Wi-Fi and uses the [simpleota](https://components.espressif.com/components/xanderwasserman/simpleota) component to check SimpleOTA for new firmware, install it, and confirm it after the board restarts.
+- `.github/workflows/firmware.yml` builds the project on every push to `main` and every pull request, and when you push a tag such as `v1.0.1` it uploads that build to your SimpleOTA project with [simpleOTA-actions](https://github.com/xanderwasserman/simpleOTA-actions).
+- `scripts/build.sh` builds the same firmware on your computer for the first USB flash.
 
 The firmware uses the [xanderwasserman/simpleota](https://components.espressif.com/components/xanderwasserman/simpleota) component at version 0.2.1. This starter does not sign firmware, so the release workflow uploads the application binary unsigned and the release action records it as security `basic`, which is what the Actions summary shows.
 
