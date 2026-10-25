@@ -7,7 +7,7 @@ This repository is a GitHub template for starting your own ESP-IDF project with 
 Your copy comes with three pieces that already work together:
 
 - `main/` is an ESP-IDF application that joins your Wi-Fi and uses the [simpleota](https://components.espressif.com/components/xanderwasserman/simpleota) component to check SimpleOTA for new firmware, install it, and confirm it after the board restarts.
-- `.github/workflows/firmware.yml` builds the project on every push to `main` and every pull request, and when you push a tag such as `v1.0.1` it uploads that build to your SimpleOTA project with [simpleOTA-actions](https://github.com/xanderwasserman/simpleOTA-actions).
+- `.github/workflows/firmware.yml` builds the project on every push to `main` and every pull request, and when you push a tag such as `v1.0.1` it uploads that build to your SimpleOTA project with [simpleOTA-actions](https://github.com/wassie-dev/simpleOTA-actions).
 - `scripts/build.sh` builds the same firmware on your computer for the first USB flash.
 
 The firmware uses the [xanderwasserman/simpleota](https://components.espressif.com/components/xanderwasserman/simpleota) component at version 0.2.1. This starter does not sign firmware, so the release workflow uploads the application binary unsigned and the release action records it as security `basic`, which is what the Actions summary shows.
