@@ -276,7 +276,7 @@ simpleota: status confirmed build 2
 example: build 2 confirmed
 ```
 
-The check line from the first boot follows those, with the server's status in parentheses.
+The next check-in then logs `simpleota: check: no update (up_to_date)`, because the board is now on the latest build.
 
 The bootloader rollback setting from the first USB flash is what makes that trial safe. A new image gets exactly one attempt until it is confirmed, and if it crashes or loses power before then, the next boot returns to the previous application, which is still in the other OTA slot. The component also gives the new image 300 seconds, the window in the trial line above, to finish a successful check-in, and if it stays running but never confirms in that window, the monitor shows `simpleota: confirm_timeout: rolling back to build 0` and the board reboots into the previous application. That 0 is the USB image from the first flash. The boot that comes back logs `simpleota: back on the previous image (confirm_timeout)`, and because the previous build number is restored, a later fixed release can be offered again.
 
