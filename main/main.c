@@ -92,6 +92,8 @@ void app_main(void) {
         .token = CONFIG_EXAMPLE_SIMPLEOTA_TOKEN,
         /* device_id defaults to the Wi-Fi MAC; chip_family to this target. */
         .version_label = app->version,
+        /* Reported when this image was flashed over USB, not by SimpleOTA. */
+        .image_build = 0,
         .event_cb = on_ota_event,
         .is_connected = is_connected,
     };
