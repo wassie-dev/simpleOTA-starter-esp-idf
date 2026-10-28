@@ -52,13 +52,13 @@ Open the project and copy the **Project ID**, the UUID under the project name, w
 
 This firmware sends the board's Wi-Fi station MAC as its device id, written in lowercase hexadecimal with colons like `aa:bb:cc:dd:ee:ff`. A device token works for exactly one device id and cannot register a device that does not exist yet, so create the device row before the first flash and enter that MAC as the device id.
 
-The ESP-IDF 5.5 line installs esptool 4, and you need to load the ESP-IDF v5.5.5 environment (`. $IDF_PATH/export.sh`, or the ESP-IDF terminal on Windows) before you run `esptool.py` or `idf.py`, as [Espressif's get-started guide for v5.5.5](https://docs.espressif.com/projects/esp-idf/en/v5.5.5/esp32/get-started/index.html) describes. Then print the address programmed into the chip:
+The ESP-IDF 5.5 line installs esptool 4, and you need to load the ESP-IDF v5.5.5 environment (`. $IDF_PATH/export.sh` with `IDF_PATH` pointing at your v5.5.5 install, or the ESP-IDF terminal on Windows) before you run `esptool.py` or `idf.py`, as [Espressif's get-started guide for v5.5.5](https://docs.espressif.com/projects/esp-idf/en/v5.5.5/esp32/get-started/index.html) describes. Then print the address programmed into the chip:
 
 ```bash
 esptool.py -p PORT read_mac
 ```
 
-Replace `PORT` with the board's serial port. The command prints the base MAC, which under Espressif's default MAC allocation is the same Wi-Fi station MAC this firmware sends, so rewrite it in lowercase with colons before you paste it into Add device.
+Replace `PORT` with the board's serial port. The command prints the base MAC, which under Espressif's default MAC allocation is the same Wi-Fi station MAC this firmware sends. If the output has a `BASE MAC` line, use that one, because on chips such as the ESP32-C6 the plain `MAC` line is a longer eight-byte value. Rewrite the base MAC in lowercase with colons before you paste it into Add device.
 
 1. Open the project.
 2. In the **Devices** card, click **Add device**.
@@ -170,10 +170,10 @@ wifi: got IP
 simpleota: running an image SimpleOTA did not install; reporting build 0
 simpleota: init: device=aa:bb:cc:dd:ee:ff chip=esp32 build=0 keys=0 rollback=1
 example: version 1.0.0, build 0; OTA task started
-simpleota: check: no update (up_to_date)
+simpleota: check: no update (no_active_deployment)
 ```
 
-`chip=` is the target you built, `keys=0` means this build has no pinned signing key, and `rollback=1` means a new image runs as a trial that can return to the previous one, which this project turns on with the bootloader rollback setting in `sdkconfig.defaults`. The words in parentheses on the last line are the server's status, which is `up_to_date` when it has nothing newer to install. The check runs in the background, so it can show up just before or just after the version line.
+`chip=` is the target you built, `keys=0` means this build has no pinned signing key, and `rollback=1` means a new image runs as a trial that can return to the previous one, which this project turns on with the bootloader rollback setting in `sdkconfig.defaults`. The words in parentheses on the last line are the server's status, which is `no_active_deployment` until your project has a release to roll out, and `up_to_date` once the board is already running the latest one. The check runs in the background, so it can show up just before or just after the version line.
 
 The warning on the third line is what you'll see after a USB flash. SimpleOTA didn't install this firmware, so the board reports build 0, which is the `image_build` value this starter sets in `main/main.c`, and that lets the server offer the release you publish. Leave `image_build` at 0 for anything you flash over USB while you're getting started. The only time to change it is when you flash a release file over USB that you also uploaded, and then it has to be the build number SimpleOTA assigned that exact file, because a number higher than the build the board is actually running stops releases up to that number from being offered.
 
@@ -230,7 +230,7 @@ git push origin HEAD
 git push origin v1.0.1
 ```
 
-Pushing the `v1.0.1` tag starts the release, and the workflow removes that one leading `v` and compares the rest to `PROJECT_VER`, so the two texts have to be identical. A tag pushed while the file still says `1.0.0` fails the Build job with `Tag v1.0.1 does not match PROJECT_VER 1.0.0.` and nothing is uploaded. If the `PROJECT_VER` line is missing, or it is no longer `set(PROJECT_VER "...")` with your version string in the quotes, the job fails with `PROJECT_VER was not found in CMakeLists.txt.`
+`git add CMakeLists.txt` stages only the version bump, so commit any other changes you want in this release before you tag it. Pushing the `v1.0.1` tag starts the release, and the workflow removes that one leading `v` and compares the rest to `PROJECT_VER`, so the two texts have to be identical. A tag pushed while the file still says `1.0.0` fails the Build job with `Tag v1.0.1 does not match PROJECT_VER 1.0.0.` and nothing is uploaded. If the `PROJECT_VER` line is missing, or it is no longer `set(PROJECT_VER "...")` with your version string in the quotes, the job fails with `PROJECT_VER was not found in CMakeLists.txt.`
 
 Watch the run under the **Actions** tab on GitHub, where the workflow is named **Firmware** and the job is named **Build**. A green run on a pull request or a push to `main` only means that chip compiled, because the upload runs on the tag, so open the tag's job summary to see whether the upload ran or was skipped.
 
@@ -242,22 +242,24 @@ To see what was uploaded, open the project and switch on **Advanced** mode with 
 
 The device checks in when it starts, including after a reset, and then about once an hour, with the first check running once Wi-Fi has an IP address. If the rollout is already active, you can reset the board to make it look right away instead of waiting for the hour.
 
-With the monitor open, a download logs these lines. The offer line names the build number SimpleOTA assigned and the release's version label, the byte counts show how much of the image has been written out of its full size, and this project logs progress at each new 10 percent mark through `downloading: 100%`. The `status` lines are the same steps the dashboard records.
+With the monitor open, a download logs these lines. The offer line names the build number SimpleOTA assigned and the release's version label, the byte counts show how much of the image has been written out of its full size, and this project logs progress at each new 10 percent mark through `downloading: 100%`, which the sample shortens to the first and last. The `status` lines are the same steps the dashboard records.
 
 ```
 simpleota: check: offer build=2 1.0.1
 example: update available: build 2
 simpleota: status download_started build 2
 example: downloading: 10% (17000/170000 bytes)
+...
 example: downloading: 100% (170000/170000 bytes)
 simpleota: status downloaded build 2
 simpleota: status flashed build 2
 simpleota: status validated build 2
 simpleota: build 2 flashed
 simpleota: status reboot build 2
+wifi: disconnected; retrying
 ```
 
-The component checks the SHA-256 checksum right after the `downloaded` status line and prints nothing when it matches, so the log goes straight on to the `flashed`, `validated` and `build 2 flashed` lines above and the board reboots, without a reboot line from this project. If the checksum doesn't match, these lines follow `simpleota: status downloaded build 2` instead, and the board stays on the firmware it was already running:
+The component checks the SHA-256 checksum right after the `downloaded` status line and prints nothing when it matches, so the log goes straight on to the `flashed`, `validated` and `build 2 flashed` lines above and the board reboots. As it goes down, this project's Wi-Fi code logs one `wifi: disconnected; retrying`, which is normal at this point and isn't the network problem described under Troubleshooting. If the checksum doesn't match, these lines follow `simpleota: status downloaded build 2` instead, and the board stays on the firmware it was already running:
 
 ```
 simpleota: update failed: checksum_mismatch
@@ -282,7 +284,7 @@ simpleota: status confirmed build 2
 example: build 2 confirmed
 ```
 
-The next check-in then logs `simpleota: check: no update (up_to_date)`, because the board is now on the latest build.
+The same check-in also logs `simpleota: check: no update (up_to_date)` right after those lines, because the board is now on the latest build.
 
 The bootloader rollback setting from the first USB flash is what makes that trial safe. A new image gets exactly one attempt until it is confirmed, and if it crashes or loses power before then, the next boot returns to the previous application, which is still in the other OTA slot. The component also gives the new image 300 seconds, the window in the trial line above, to finish a successful check-in, and if it stays running but never confirms in that window, the monitor shows `simpleota: confirm_timeout: rolling back to build 0` and the board reboots into the previous application, which here is the build 0 image from your first USB flash. The boot that comes back logs `simpleota: back on the previous image (confirm_timeout)`, and because the previous build number is restored, a later fixed release can be offered again.
 
